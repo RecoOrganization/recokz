@@ -152,10 +152,12 @@ model CrmTransaction {
 }
 
 model Conf {
-  id                   String   @id @default(uuid()) @map("id")
-  organizationId       String   @unique @map("organization_id")
-  rekassaIdEncrypted   String?  @map("rekassa_id_encrypted")
-  rekassaTokenEncrypted String? @map("rekassa_token_encrypted")
+  id                     String   @id @default(uuid()) @map("id")
+  organizationId         String   @unique @map("organization_id")
+  rekassaIdEncrypted     String?  @map("rekassa_id_encrypted")
+  rekassaTokenEncrypted  String?  @map("rekassa_token_encrypted")
+  rekassaNumberEncrypted String?  @map("rekassa_number_encrypted")
+  rekassaPasswordEncrypted String? @map("rekassa_password_encrypted")
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 

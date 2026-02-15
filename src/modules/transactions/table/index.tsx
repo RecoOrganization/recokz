@@ -51,6 +51,9 @@ export function TransactionsTable() {
 
   const { data: rekassaCredentials } = api.rekassa.getCredentials.useQuery();
 
+  const { mutateAsync: refreshRekassaCredentials } =
+    api.rekassa.refreshCredentials.useMutation();
+
   const { mutateAsync: deleteCrmTransaction } =
     api.crmTransaction.delete.useMutation({
       onSuccess: () => {
@@ -193,26 +196,17 @@ export function TransactionsTable() {
   const sendToRekassa = async (transaction: Transaction) => {
     setLoading(true);
 
-    try {
-      if (!rekassaCredentials?.id || !rekassaCredentials?.token) {
-        toast.error(
-          "Не получилось авторизоваться в Rekassa, Перейдите на страницу авторизации (Rekassa)",
-        );
-        return;
-      }
-
+    const sendTicket = async (creds: { id: string; token: string }) => {
       const now = new Date();
       const formattedDate = formatDateToCustomObject(now);
       const price = transaction.amount.toString();
 
       await axiosApi.post(
-        `${process.env.NEXT_PUBLIC_API_REKASSA}/api/crs/${rekassaCredentials.id}/tickets`,
+        `${process.env.NEXT_PUBLIC_API_REKASSA}/api/crs/${creds.id}/tickets`,
         {
           operation: "OPERATION_SELL",
           ...formattedDate,
-          domain: {
-            type: "DOMAIN_SERVICES",
-          },
+          domain: { type: "DOMAIN_SERVICES" },
           items: [
             {
               type: "ITEM_TYPE_COMMODITY",
@@ -220,63 +214,63 @@ export function TransactionsTable() {
                 name: "Позиция",
                 sectionCode: "1",
                 quantity: 1000,
-                price: {
-                  bills: price,
-                  coins: 0,
-                },
-                sum: {
-                  bills: price,
-                  coins: 0,
-                },
-                auxiliary: [
-                  {
-                    key: "UNIT_TYPE",
-                    value: "PIECE",
-                  },
-                ],
+                price: { bills: price, coins: 0 },
+                sum: { bills: price, coins: 0 },
+                auxiliary: [{ key: "UNIT_TYPE", value: "PIECE" }],
               },
             },
           ],
-          payments: [
-            {
-              type: "PAYMENT_CARD", // PAYMENT_CASH / PAYMENT_CARD
-              sum: {
-                bills: price,
-                coins: 0,
-              },
-            },
-          ],
+          payments: [{ type: "PAYMENT_CARD", sum: { bills: price, coins: 0 } }],
           amounts: {
-            total: {
-              bills: price,
-              coins: 0,
-            },
-            taken: {
-              bills: price,
-              coins: 0,
-            },
-            change: {
-              bills: "0",
-              coins: 0,
-            },
+            total: { bills: price, coins: 0 },
+            taken: { bills: price, coins: 0 },
+            change: { bills: "0", coins: 0 },
           },
         },
         {
           headers: {
-            Authorization: `Bearer ${rekassaCredentials.token}`,
+            Authorization: `Bearer ${creds.token}`,
             "X-Request-ID": crypto.randomUUID(),
           },
         },
       );
+    };
+
+    try {
+      if (!rekassaCredentials?.id || !rekassaCredentials?.token) {
+        toast.error(
+          "Не получилось авторизоваться в Rekassa. Перейдите на страницу авторизации (Rekassa)",
+        );
+        return;
+      }
+
+      let creds = rekassaCredentials;
+
+      try {
+        await sendTicket(creds);
+      } catch (e) {
+        if (
+          e instanceof AxiosError &&
+          e.response?.status === 401
+        ) {
+          const refreshed = await refreshRekassaCredentials();
+          utils.rekassa.getCredentials.invalidate();
+          creds = refreshed;
+          await sendTicket(creds);
+        } else {
+          throw e;
+        }
+      }
+
       await updateCrmTransaction({
         transactionId: transaction.id,
         sentToRekassa: true,
       });
     } catch (e) {
       if (e instanceof AxiosError) {
-        if (e.status === 401) {
+        if (e.response?.status === 401) {
           toast.error(
-            "Не получилось авторизоваться в Rekassa, Перейдите на страницу авторизации (Rekassa)",
+            "Не удалось авторизоваться в Rekassa. Перейдите на страницу подключения и заново подключите Rekassa.",
           );
         } else {
           toast.error(e.message);
@@ -288,9 +282,9 @@ export function TransactionsTable() {
             : "Произошла ошибка при отправке в Рекассу",
         );
       }
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const exportTransactions = async () => {

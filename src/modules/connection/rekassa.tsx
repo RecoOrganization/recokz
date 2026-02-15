@@ -43,6 +43,8 @@ export const Main = () => {
       await saveCredentials({
         id: response.data.id.toString(),
         token: response.data.token,
+        number: rekassaData.number,
+        password: rekassaData.password,
       });
     } catch (e) {
       console.log(e);
