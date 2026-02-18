@@ -107,6 +107,38 @@ export const crmTransactionRouter = createTRPCRouter({
             })
             return transaction;
         }),
+    create: protectedProcedure
+        .input(z.object({
+            amount: z.string().min(1),
+            paymentType: z.enum(["cash", "kaspi", "halyk"]),
+            description: z.string().optional(),
+        }))
+        .mutation(async ({ ctx, input }) => {
+            const transaction = await ctx.prisma.crmTransaction.create({
+                data: {
+                    amount: input.amount,
+                    date: new Date(),
+                    transactionId: `manual-${crypto.randomUUID()}`,
+                    organizationId: ctx.organizationId,
+                    meta: {
+                        crm: "Ручная транзакция",
+                        manual: true,
+                        paymentType: input.paymentType,
+                        data: {
+                            account: {
+                                title: input.paymentType === "cash" ? "Наличные"
+                                    : input.paymentType === "kaspi" ? "Kaspi"
+                                    : "Halyk",
+                            },
+                            expense: {
+                                title: input.description || "",
+                            },
+                        },
+                    },
+                },
+            });
+            return transaction;
+        }),
     delete: protectedProcedure
         .input(z.object({
             id: z.string()

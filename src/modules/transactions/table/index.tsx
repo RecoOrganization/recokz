@@ -7,6 +7,7 @@ import {
   Download,
   ChevronLeft,
   ChevronRight,
+  Plus,
 } from "lucide-react";
 import {
   Table,
@@ -28,6 +29,21 @@ import { CustomCheckbox } from "@/shared/ui/checkbox";
 import { formatDateToCustomObject } from "../utils";
 import { Axios, AxiosError } from "axios";
 import * as XLSX from "xlsx";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/shared/ui/dialog";
+import { Input } from "@/shared/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
 
 export function TransactionsTable() {
   const { user } = useUser();
@@ -39,6 +55,12 @@ export function TransactionsTable() {
   const [exportEndDate, setExportEndDate] = useState("");
   const [page, setPage] = useState(1);
   const [limit] = useState(15);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newTxAmount, setNewTxAmount] = useState("");
+  const [newTxPaymentType, setNewTxPaymentType] = useState<
+    "cash" | "kaspi" | "halyk"
+  >("cash");
+  const [newTxDescription, setNewTxDescription] = useState("");
 
   const { data: paginatedData, isLoading: isTransactionsLoading } =
     api.crmTransaction.getPaginated.useQuery({
@@ -53,6 +75,22 @@ export function TransactionsTable() {
 
   const { mutateAsync: refreshRekassaCredentials } =
     api.rekassa.refreshCredentials.useMutation();
+
+  const { mutateAsync: createCrmTransaction, isPending: isCreating } =
+    api.crmTransaction.create.useMutation({
+      onSuccess: () => {
+        toast.success("Транзакция создана");
+        utils.crmTransaction.getPaginated.invalidate();
+        utils.crmTransaction.getAll.invalidate();
+        setIsCreateModalOpen(false);
+        setNewTxAmount("");
+        setNewTxPaymentType("cash");
+        setNewTxDescription("");
+      },
+      onError: () => {
+        toast.error("Не удалось создать транзакцию");
+      },
+    });
 
   const { mutateAsync: deleteCrmTransaction } =
     api.crmTransaction.delete.useMutation({
@@ -249,10 +287,7 @@ export function TransactionsTable() {
       try {
         await sendTicket(creds);
       } catch (e) {
-        if (
-          e instanceof AxiosError &&
-          e.response?.status === 401
-        ) {
+        if (e instanceof AxiosError && e.response?.status === 401) {
           const refreshed = await refreshRekassaCredentials();
           utils.rekassa.getCredentials.invalidate();
           creds = refreshed;
@@ -398,6 +433,26 @@ export function TransactionsTable() {
     }
   };
 
+  const handleCreateTransaction = async () => {
+    const amount = newTxAmount.trim();
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) {
+      toast.error("Введите корректную сумму");
+      return;
+    }
+    await createCrmTransaction({
+      amount,
+      paymentType: newTxPaymentType,
+      description: newTxDescription.trim() || undefined,
+    });
+  };
+
+  const amountOfTransactionsToday = transactions.reduce((acc, item) => {
+    if (dayjs(item.createdAt).isSame(dayjs(), "day")) {
+      return acc + Number(item.amount);
+    }
+    return acc;
+  }, 0);
+
   return (
     <div className="flex flex-col gap-8 mb-12">
       <div className="flex justify-between flex gap-4">
@@ -427,10 +482,24 @@ export function TransactionsTable() {
             <Download className="h-4 w-4" />
             Экспорт
           </Button>
+          <Button
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Создать
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex justify-between">
+        <div>
+          <p>Сумма транзакций за сегодня: {amountOfTransactionsToday}</p>
         </div>
         {checkedTransactions.length !== 0 && (
-          <div>
-            Сумма: {amountOfTransactions}
+          <div className="flex flex-col items-end gap-2">
+            <span>Сумма: {amountOfTransactions}</span>
             <div className="flex justify-end gap-2">
               <Button
                 className="flex w-full px-1 bg-red-600 text-white"
@@ -464,7 +533,7 @@ export function TransactionsTable() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Статус</TableHead>
+                <TableHead></TableHead>
                 <TableHead>Дата</TableHead>
                 <TableHead>Сумма</TableHead>
                 <TableHead>Описание</TableHead>
@@ -494,7 +563,7 @@ export function TransactionsTable() {
                             onChange={(e) => handleOptionChange(e, item.amount)}
                           />
                         )}
-                        {item.bankTransactionId ? "Оплачено" : "Не оплачено"}
+                        {item.bankTransactionId ? "Оплачено" : ""}
                       </div>
                       <p>{item.sentToRekassa ? "Отправлено в Rekassa" : ""}</p>
                     </div>
@@ -599,6 +668,69 @@ export function TransactionsTable() {
           )}
         </>
       )}
+
+      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Создать транзакцию</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="block text-sm font-medium mb-1">Сумма</label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0"
+                value={newTxAmount}
+                onChange={(e) => setNewTxAmount(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Способ оплаты
+              </label>
+              <Select
+                value={newTxPaymentType}
+                onValueChange={(v) =>
+                  setNewTxPaymentType(v as "cash" | "kaspi" | "halyk")
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Наличные</SelectItem>
+                  <SelectItem value="kaspi">Kaspi</SelectItem>
+                  <SelectItem value="halyk">Halyk</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Описание
+              </label>
+              <Input
+                type="text"
+                placeholder="Описание транзакции (необязательно)"
+                value={newTxDescription}
+                onChange={(e) => setNewTxDescription(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsCreateModalOpen(false)}
+            >
+              Отмена
+            </Button>
+            <Button onClick={handleCreateTransaction} disabled={isCreating}>
+              {isCreating ? "Создание..." : "Создать"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
