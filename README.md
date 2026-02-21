@@ -1,5 +1,42 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Локальная разработка
+
+### Что нужно передать разработчику
+
+1. **Файл переменных окружения**  
+   Скопировать репозиторий, затем создать `.env` в корне проекта:
+   ```bash
+   cp .env.example .env
+   ```
+   Заполнить `.env` значениями (их передаёт владелец проекта или берёт из общего хранилища секретов).
+
+2. **База данных**  
+   - Поднять PostgreSQL (локально или Docker).  
+   - В `.env` указать `DATABASE_URL` с доступом к этой БД (логин, пароль, хост, порт, имя БД).
+
+3. **Применить миграции и сгенерировать Prisma Client**  
+   ```bash
+   npm install
+   npx prisma migrate dev
+   # или для существующей БД без миграций: npx prisma db push
+   npx prisma generate
+   ```
+
+4. **Запуск**  
+   ```bash
+   npm run dev
+   ```
+   Приложение: [http://localhost:5173](http://localhost:5173).
+
+5. **Просмотр/редактирование БД**  
+   ```bash
+   npm run prisma-studio
+   ```
+   Откроется Prisma Studio для просмотра и правки данных.
+
+**Минимально для входа в приложение и БД:** заполненные `DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`. Остальные переменные нужны для оплат (Pusher, Rekassa) и AI.
+
 ## Getting Started
 
 First, run the development server:
