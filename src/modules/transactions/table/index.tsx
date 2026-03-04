@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ChangeEvent } from "react";
-import { TrashIcon, ArrowRightFromLineIcon, Download } from "lucide-react";
+import { TrashIcon, ArrowRightFromLineIcon, Download, BotIcon } from "lucide-react";
 import {
   Table,
   TableHeader,
@@ -22,9 +22,11 @@ import { CustomCheckbox } from "@/shared/ui/checkbox";
 import { formatDateToCustomObject } from "../utils";
 import { Axios, AxiosError } from "axios";
 import * as XLSX from "xlsx";
+import { ChatAssistantModal, useChatAssistant } from "../chat-modal";
 
 export function TransactionsTable() {
   const { user } = useUser();
+  const chatAssistant = useChatAssistant();
   const utils = api.useUtils();
   const [isLoading, setLoading] = useState(false);
   const [checkedTransactions, setCheckedTransactions] = useState<string[]>([]);
@@ -388,8 +390,18 @@ export function TransactionsTable() {
   return (
     <div className="flex flex-col gap-8 mb-12">
       <div className="flex justify-between flex gap-4">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-3xl">Прием оплат</h1>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={chatAssistant.openModal}
+          >
+            <BotIcon className="h-4 w-4" />
+            AI-ассистент
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -549,6 +561,12 @@ export function TransactionsTable() {
           </TableBody>
         </Table>
       )}
+
+      <ChatAssistantModal
+        open={chatAssistant.open}
+        onOpenChange={(open) => !open && chatAssistant.closeModal()}
+        chat={chatAssistant}
+      />
     </div>
   );
 }
