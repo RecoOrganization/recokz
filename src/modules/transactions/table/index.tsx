@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
+  BotIcon,
 } from "lucide-react";
 import {
   Table,
@@ -44,9 +45,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { ChatAssistantModal, useChatAssistant } from "../chat-modal";
 
 export function TransactionsTable() {
   const { user } = useUser();
+  const chatAssistant = useChatAssistant();
   const utils = api.useUtils();
   const [isLoading, setLoading] = useState(false);
   const [checkedTransactions, setCheckedTransactions] = useState<string[]>([]);
@@ -456,8 +459,18 @@ export function TransactionsTable() {
   return (
     <div className="flex flex-col gap-8 mb-12">
       <div className="flex justify-between flex gap-4">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-3xl">Прием оплат</h1>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={chatAssistant.openModal}
+          >
+            <BotIcon className="h-4 w-4" />
+            AI-ассистент
+          </Button>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -707,9 +720,7 @@ export function TransactionsTable() {
               </Select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Описание
-              </label>
+              <label className="block text-sm font-medium mb-1">Описание</label>
               <Input
                 type="text"
                 placeholder="Описание транзакции (необязательно)"
@@ -731,6 +742,12 @@ export function TransactionsTable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ChatAssistantModal
+        open={chatAssistant.open}
+        onOpenChange={(open) => !open && chatAssistant.closeModal()}
+        chat={chatAssistant}
+      />
     </div>
   );
 }
