@@ -15,7 +15,7 @@ const SYSTEM_PROMPT = `
 
 ПРАВИЛА:
 1. Если запрос непонятен — вызови инструмент 'get_capabilities' или задай уточняющий вопрос.
-2. Для получения суммы транзакций используй 'get_daily_transaction_sum'.
+2. Для получения суммы транзакций используй 'get_daily_transaction_sum'. Фильтровать можно по названию компании (достаточно части названия) — передавай параметр company_name. Без параметра вернётся сумма по всем организациям.
 3. Всегда отвечай вежливо и только на основе данных из инструментов.
 `;
 
@@ -41,13 +41,34 @@ export async function POST(req: Request) {
       }),
 
       get_daily_transaction_sum: tool({
-        description: 'Получить общую сумму транзакций за текущие сутки',
+        description:
+          'Получить общую сумму транзакций за текущие сутки. Можно передать название компании (или часть названия) для фильтрации по организации.',
         parameters: z.object({
-          company_id: z.string().optional().describe('ID компании для фильтрации'),
+          company_name: z
+            .string()
+            .optional()
+            .describe(
+              'Название компании для фильтрации (достаточно части названия, без учёта регистра)',
+            ),
         }),
-        execute: async ({ company_id }) => {
+        execute: async ({ company_name }) => {
           try {
-            // Используем параметризованный запрос для безопасности
+            let organizationId: string | null = null;
+
+            if (company_name?.trim()) {
+              const nameRows = await pool.query(
+                `SELECT id FROM organizations WHERE name ILIKE $1 LIMIT 1`,
+                [`%${company_name.trim()}%`],
+              );
+              if (nameRows.rows.length === 0) {
+                return {
+                  error: `Организация по названию «${company_name}» не найдена`,
+                  period: 'сегодня',
+                };
+              }
+              organizationId = nameRows.rows[0].id;
+            }
+
             let query = `
               SELECT 
                 SUM(amount) as total_sum, 
@@ -55,23 +76,27 @@ export async function POST(req: Request) {
               FROM transactions 
               WHERE created_at >= CURRENT_DATE
             `;
-            const params: any[] = [];
+            const params: string[] = [];
 
-            if (company_id) {
-              query += ` AND company_id = $1`;
-              params.push(company_id);
+            if (organizationId) {
+              query += ` AND organization_id = $1`;
+              params.push(organizationId);
             }
 
-            const { rows } = await pool.query(query, params);
-            
+            const { rows } =
+              params.length > 0
+                ? await pool.query(query, params)
+                : await pool.query(query);
+
             return {
-              sum: rows[0].total_sum || 0,
-              count: rows[0].total_count,
-              period: "сегодня"
+              sum: rows[0]?.total_sum ?? 0,
+              count: rows[0]?.total_count ?? 0,
+              period: 'сегодня',
+              ...(organizationId && { filtered_by_organization: true }),
             };
           } catch (error) {
-            console.error("DB Error:", error);
-            return { error: "Не удалось получить данные из базы" };
+            console.error('DB Error:', error);
+            return { error: 'Не удалось получить данные из базы' };
           }
         },
       }),
