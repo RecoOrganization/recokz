@@ -17,7 +17,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 
   return {
     userId,
-    organizationId: sessionClaims?.metadata.organizationId,
+    organizationId: sessionClaims?.metadata?.organizationId,
     prisma,
     clerk,
     ...opts,

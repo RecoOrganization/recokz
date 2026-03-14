@@ -5,7 +5,7 @@ import { PropsWithChildren } from "react";
 export default async function RootLayout({ children }: PropsWithChildren) {
   const { sessionClaims } = await auth();
 
-  if (sessionClaims?.metadata.organizationId) {
+  if (sessionClaims?.metadata?.organizationId) {
     redirect("/cabinet");
   }
 

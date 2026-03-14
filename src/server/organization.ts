@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter } from "@/shared/lib/trpc/server";
 import { protectedProcedure } from "@/shared/lib/trpc/server";
 import { z } from "zod";
@@ -106,6 +107,51 @@ export const organizationRouter = createTRPCRouter({
       });
 
       return organization;
+    }),
+
+  addUserByEmail: protectedProcedure
+    .input(z.object({ email: z.string().email("Некорректный email") }))
+    .mutation(async ({ ctx, input }) => {
+      const organizationId = ctx.organizationId;
+      if (!organizationId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Сначала выберите организацию",
+        });
+      }
+
+      const user = await ctx.prisma.user.findFirst({
+        where: { email: input.email.toLowerCase().trim() },
+      });
+      if (!user) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message:
+            "Пользователь с таким email не зарегистрирован. Попросите его зарегистрироваться и подтвердить почту.",
+        });
+      }
+
+      const existing = await ctx.prisma.userOrganization.findUnique({
+        where: {
+          userId_organizationId: { userId: user.id, organizationId },
+        },
+      });
+      if (existing) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Пользователь уже добавлен в эту компанию",
+        });
+      }
+
+      await ctx.prisma.userOrganization.create({
+        data: { userId: user.id, organizationId },
+      });
+
+      await ctx.clerk.users.updateUserMetadata(user.clerkUserId, {
+        publicMetadata: { organizationId },
+      });
+
+      return { success: true, userName: user.fullName };
     }),
 
   clearOrganization: protectedProcedure.mutation(async ({ ctx }) => {

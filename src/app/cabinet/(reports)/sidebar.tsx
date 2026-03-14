@@ -17,6 +17,7 @@ import {
   ArrowLeftRightIcon,
   ChevronsLeftRightEllipsisIcon,
   UserIcon,
+  UsersIcon,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -94,6 +95,14 @@ export function ReportsSidebar() {
                   <Link href="/cabinet/dictionary">
                     <BookOpenIcon />
                     <span>Справочники</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/cabinet/team">
+                    <UsersIcon />
+                    <span>Команда</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

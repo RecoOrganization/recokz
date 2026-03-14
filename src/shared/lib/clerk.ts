@@ -48,7 +48,8 @@ export const useClerkSignUp = () => {
 
       if (result.status === "complete") {
         await setActive({ session: result.createdSessionId });
-        router.push("/cabinet");
+        await fetch("/api/sync-user", { method: "POST", credentials: "include" });
+        router.push("/onboarding");
       }
     } catch (error) {
       toast.error("Не удалось подтвердить почту", {

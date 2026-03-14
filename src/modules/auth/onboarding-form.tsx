@@ -31,7 +31,11 @@ const formSchema = z.object({
     .min(10, "Номер телефона должен содержать не менее 10 символов"),
 });
 
-export function OnboardingForm() {
+export function OnboardingForm({
+  onBack,
+}: {
+  onBack?: () => void;
+} = {}) {
   const router = useRouter();
   const { user } = useUser();
 
@@ -139,10 +143,17 @@ export function OnboardingForm() {
             </div>
 
             <div className="flex justify-between items-center gap-12">
-              <Typography size="body-14" className="text-gray-200">
-                Нажимая кнопку “Продолжить”, вы
-                <br /> соглашаетесь с Политикой конфиденциальности
-              </Typography>
+              <div className="flex gap-2">
+                {onBack && (
+                  <Button type="button" variant="outline" onClick={onBack}>
+                    Назад
+                  </Button>
+                )}
+                <Typography size="body-14" className="text-gray-200">
+                  Нажимая кнопку “Продолжить”, вы
+                  <br /> соглашаетесь с Политикой конфиденциальности
+                </Typography>
+              </div>
               <Button type="submit">Продолжить</Button>
             </div>
           </div>
