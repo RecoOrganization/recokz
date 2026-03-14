@@ -56,7 +56,7 @@ export default function TeamPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={isPending}
-            className="max-w-sm"
+            className="max-w-sm border-gray-200"
           />
         </label>
         <Button type="submit" disabled={isPending} className="w-fit gap-2">
