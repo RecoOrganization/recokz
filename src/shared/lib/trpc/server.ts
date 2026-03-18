@@ -11,13 +11,62 @@ import { prisma } from "@/shared/lib/prisma";
  * These allow you to access things like the database, the session, etc, when
  * processing a request
  */
+type ClerkOrgMetadata = {
+  organizationIds?: string[];
+  currentOrganizationId?: string | null;
+  /** @deprecated use organizationIds + currentOrganizationId */
+  organizationId?: string | null;
+};
+
+function getOrgFromMetadata(metadata: ClerkOrgMetadata | undefined): {
+  organizationId: string | undefined;
+  organizationIds: string[];
+  currentOrganizationId: string | null;
+} {
+  let organizationIds = Array.isArray(metadata?.organizationIds)
+    ? metadata.organizationIds
+    : [];
+  const legacyId = metadata?.organizationId as string | null | undefined;
+  if (organizationIds.length === 0 && legacyId) {
+    organizationIds = [legacyId];
+  }
+  const currentOrganizationId =
+    metadata?.currentOrganizationId !== undefined
+      ? (metadata.currentOrganizationId as string | null)
+      : legacyId ?? null;
+  const organizationId =
+    currentOrganizationId ?? organizationIds[0] ?? undefined;
+  return { organizationId, organizationIds, currentOrganizationId };
+}
+
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   const { userId, sessionClaims } = await auth();
   const clerk = await clerkClient();
 
+  let meta: ClerkOrgMetadata | undefined =
+    (sessionClaims?.metadata as ClerkOrgMetadata) ??
+    (sessionClaims as { publicMetadata?: ClerkOrgMetadata })?.publicMetadata;
+
+  const hasOrgInfo =
+    (Array.isArray(meta?.organizationIds) && meta.organizationIds.length > 0) ||
+    (typeof meta?.organizationId === "string" && meta.organizationId);
+  if (userId && !hasOrgInfo) {
+    try {
+      const user = await clerk.users.getUser(userId);
+      meta = user.publicMetadata as ClerkOrgMetadata;
+    } catch {
+      // ignore
+    }
+  }
+
+  const { organizationId, organizationIds, currentOrganizationId } =
+    getOrgFromMetadata(meta);
+
   return {
     userId,
-    organizationId: sessionClaims?.metadata?.organizationId,
+    organizationId,
+    organizationIds,
+    currentOrganizationId,
     prisma,
     clerk,
     ...opts,
@@ -74,6 +123,8 @@ const enforceUserIsAuthed = t.middleware(({ ctx, next }) => {
     ctx: {
       userId: ctx.userId,
       organizationId: ctx.organizationId,
+      organizationIds: ctx.organizationIds,
+      currentOrganizationId: ctx.currentOrganizationId,
       prisma: ctx.prisma,
       clerk: ctx.clerk,
     },

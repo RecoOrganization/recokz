@@ -10,8 +10,10 @@ import { rekassaRouter } from "./rekassa";
 import { bankTransactionRouter } from "./bank-transaction";
 import { transactionRouter } from "./transaction";
 import { userRouter } from "./user";
+import { dashboardRouter } from "./dashboard";
 
 export const appRouter = createTRPCRouter({
+  dashboard: dashboardRouter,
   organization: organizationRouter,
   transactionType: transactionTypeRouter,
   reports: reportsRouter,

@@ -99,10 +99,11 @@ export const organizationRouter = createTRPCRouter({
         data: defaultTransactionTypes,
       });
 
-      // Обновляем metadata в Clerk
+      // Обновляем metadata в Clerk: массив компаний + текущая
       await ctx.clerk.users.updateUserMetadata(ctx.userId, {
         publicMetadata: {
-          organizationId: organization.id,
+          organizationIds: [organization.id],
+          currentOrganizationId: organization.id,
         },
       });
 
@@ -147,21 +148,63 @@ export const organizationRouter = createTRPCRouter({
         data: { userId: user.id, organizationId },
       });
 
+      const existingMeta = (await ctx.clerk.users.getUser(user.clerkUserId))
+        .publicMetadata as { organizationIds?: string[] } | undefined;
+      const existingIds = Array.isArray(existingMeta?.organizationIds)
+        ? existingMeta.organizationIds
+        : [];
+      const newIds = existingIds.includes(organizationId)
+        ? existingIds
+        : [...existingIds, organizationId];
+
       await ctx.clerk.users.updateUserMetadata(user.clerkUserId, {
-        publicMetadata: { organizationId },
+        publicMetadata: {
+          organizationIds: newIds,
+          currentOrganizationId: organizationId,
+        },
       });
 
       return { success: true, userName: user.fullName };
     }),
 
   clearOrganization: protectedProcedure.mutation(async ({ ctx }) => {
+    const existingMeta = (await ctx.clerk.users.getUser(ctx.userId))
+      .publicMetadata as {
+      organizationIds?: string[];
+      currentOrganizationId?: string | null;
+    };
+    const organizationIds = Array.isArray(existingMeta?.organizationIds)
+      ? existingMeta.organizationIds
+      : [];
     await ctx.clerk.users.updateUserMetadata(ctx.userId, {
       publicMetadata: {
-        organizationId: null,
+        organizationIds,
+        currentOrganizationId: null,
       },
     });
     return { success: true };
   }),
+
+  setCurrentOrganization: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const ids = ctx.organizationIds ?? [];
+      if (!ids.includes(input.organizationId)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Нет доступа к этой организации",
+        });
+      }
+      const existingMeta = (await ctx.clerk.users.getUser(ctx.userId))
+        .publicMetadata as { organizationIds?: string[] };
+      await ctx.clerk.users.updateUserMetadata(ctx.userId, {
+        publicMetadata: {
+          organizationIds: existingMeta?.organizationIds ?? ids,
+          currentOrganizationId: input.organizationId,
+        },
+      });
+      return { success: true };
+    }),
 });
 
 export type OrganizationRouter = typeof organizationRouter;

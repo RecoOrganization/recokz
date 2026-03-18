@@ -1,15 +1,11 @@
-import { SidebarProvider } from "@/shared/ui/sidebar";
-import { ReportsSidebar } from "./sidebar";
 import { CreateReport } from "@/modules/reports/create-report";
+import { CabinetLayoutClient } from "./cabinet-layout-client";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
-    <SidebarProvider>
-      <ReportsSidebar />
-      <main className="w-full">{children}</main>
-
-      {/* Floating Create Report Button */}
+    <CabinetLayoutClient>
+      {children}
       <CreateReport />
-    </SidebarProvider>
+    </CabinetLayoutClient>
   );
 }

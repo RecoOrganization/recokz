@@ -18,6 +18,7 @@ import {
   ChevronsLeftRightEllipsisIcon,
   UserIcon,
   UsersIcon,
+  LayoutDashboardIcon,
 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -63,6 +64,14 @@ export function ReportsSidebar() {
                   <Link href="/cabinet/profile">
                     <UserIcon />
                     <span>Профиль</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild>
+                  <Link href="/cabinet/dashboard">
+                    <LayoutDashboardIcon />
+                    <span>Дашборд</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

@@ -4,10 +4,67 @@ import { api } from "@/shared/lib/trpc/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/shared/ui/card";
 import { Typography } from "@/shared/ui/typography";
 import { Skeleton } from "@/shared/ui/skeleton";
-import { User, Mail, Phone, Building2, Briefcase, Hash } from "lucide-react";
+import { User, Mail, Phone, Briefcase, Pencil } from "lucide-react";
+import { Button } from "@/shared/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/shared/ui/dialog";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Form } from "@/shared/ui/form";
+import { InputField } from "@/shared/ui/_fields/input-field";
+import { toast } from "sonner";
+import { useState } from "react";
+
+const profileFormSchema = z.object({
+  fullName: z.string().min(1, "Обязательное поле"),
+  position: z.string(),
+  email: z.string().email("Некорректный email"),
+  phone: z.string().min(1, "Укажите телефон"),
+});
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export default function ProfilePage() {
+  const [editOpen, setEditOpen] = useState(false);
+  const utils = api.useUtils();
   const { data: user, isLoading } = api.user.getCurrent.useQuery();
+  const { mutateAsync: updateCurrent, isPending: isUpdating } =
+    api.user.updateCurrent.useMutation({
+      onSuccess: () => {
+        void utils.user.getCurrent.invalidate();
+        setEditOpen(false);
+        toast.success("Данные обновлены");
+      },
+      onError: (e) => toast.error(e.message),
+    });
+
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    values: user
+      ? {
+          fullName: user.fullName,
+          position: user.position ?? "",
+          email: user.email,
+          phone: user.phone,
+        }
+      : undefined,
+  });
+
+  async function onSubmit(values: ProfileFormValues) {
+    await updateCurrent({
+      fullName: values.fullName,
+      position: values.position || null,
+      email: values.email,
+      phone: values.phone,
+    });
+  }
 
   if (isLoading) {
     return (
@@ -36,8 +93,61 @@ export default function ProfilePage() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between gap-4">
           <CardTitle>Личная информация</CardTitle>
+          <Dialog open={editOpen} onOpenChange={setEditOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Pencil className="h-4 w-4" />
+                Редактировать
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Редактировать профиль</DialogTitle>
+              </DialogHeader>
+              <Form {...form}>
+                <form
+                  onSubmit={form.handleSubmit(onSubmit)}
+                  className="space-y-4"
+                >
+                  <InputField
+                    name="fullName"
+                    label="ФИО"
+                    placeholder="Иванов Иван Иванович"
+                  />
+                  <InputField
+                    name="position"
+                    label="Должность"
+                    placeholder="Менеджер"
+                  />
+                  <InputField
+                    name="email"
+                    label="Email"
+                    type="email"
+                    placeholder="email@example.com"
+                  />
+                  <InputField
+                    name="phone"
+                    label="Номер телефона"
+                    placeholder="+7 700 123 45 67"
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditOpen(false)}
+                    >
+                      Отмена
+                    </Button>
+                    <Button type="submit" disabled={isUpdating}>
+                      {isUpdating ? "Сохранение…" : "Сохранить"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-start gap-4">
@@ -89,39 +199,6 @@ export default function ProfilePage() {
               </Typography>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Информация о компании</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-start gap-4">
-            <Building2 className="h-5 w-5 text-muted-foreground mt-0.5" />
-            <div className="flex-1">
-              <Typography size="body-14" color="gray-200">
-                Наименование компании
-              </Typography>
-              <Typography size="body-16" className="mt-1">
-                {user.companyName}
-              </Typography>
-            </div>
-          </div>
-
-          {user.bin && (
-            <div className="flex items-start gap-4">
-              <Hash className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div className="flex-1">
-                <Typography size="body-14" color="gray-200">
-                  БИН
-                </Typography>
-                <Typography size="body-16" className="mt-1">
-                  {user.bin}
-                </Typography>
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
