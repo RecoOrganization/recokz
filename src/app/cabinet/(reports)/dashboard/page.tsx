@@ -95,8 +95,8 @@ export default function DashboardPage() {
                       }
                     />
                     <Tooltip
-                      formatter={(value: number) => [
-                        `${Number(value).toLocaleString("ru-KZ")} ₸`,
+                      formatter={(value: unknown) => [
+                        `${Number(value ?? 0).toLocaleString("ru-KZ")} ₸`,
                         "Сумма",
                       ]}
                       labelFormatter={(_, payload) =>
