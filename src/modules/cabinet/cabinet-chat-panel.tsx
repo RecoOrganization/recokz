@@ -4,18 +4,47 @@ import { useRef, useEffect } from "react";
 import { useChat } from "@ai-sdk/react";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/cn";
-import { BotIcon, SendIcon, UserIcon } from "lucide-react";
+import { BotIcon, SendIcon, UserIcon, SparklesIcon } from "lucide-react";
 
 const CHAT_API = "/api/chat";
 
+// Быстрые вопросы, сгруппированные по категориям
+const QUICK_QUESTIONS = [
+  { label: "💰 Выручка сегодня", text: "Какая выручка сегодня?" },
+  {
+    label: "📊 Статистика за 7 дней",
+    text: "Покажи статистику транзакций за последние 7 дней",
+  },
+  {
+    label: "📋 Последняя сверка",
+    text: "Расскажи про последнюю завершённую сверку и её результаты",
+  },
+  {
+    label: "🔍 Как провести сверку?",
+    text: "Как создать и провести сверку — объясни все шаги?",
+  },
+  {
+    label: "🏦 Как подключить Rekassa?",
+    text: "Как подключить Rekassa в разделе Интеграции?",
+  },
+  {
+    label: "📎 Как загрузить документы?",
+    text: "Как загрузить банковскую выписку Kaspi или Halyk на шаге «Загрузка документов»?",
+  },
+];
+
 export function CabinetChatPanel() {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { messages, input, setInput, handleSubmit, isLoading } = useChat({
-    api: CHAT_API,
-    streamProtocol: "data",
-    onError: (err) => console.error("Chat error:", err),
-  });
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  const { messages, input, setInput, handleSubmit, isLoading, append } =
+    useChat({
+      api: CHAT_API,
+      streamProtocol: "data",
+      onError: (err) => console.error("Chat error:", err),
+    });
+
+  // Автоскролл к последнему сообщению
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -28,32 +57,59 @@ export function CabinetChatPanel() {
     handleSubmit(e);
   };
 
+  const onQuickQuestion = (text: string) => {
+    if (isLoading) return;
+    append({ role: "user", content: text });
+    inputRef.current?.focus();
+  };
+
   return (
     <aside className="flex h-full w-[320px] shrink-0 flex-col border-r bg-card">
+      {/* Шапка */}
       <div className="shrink-0 border-b px-4 py-3">
         <h2 className="flex items-center gap-2 text-sm font-semibold">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <BotIcon className="h-4 w-4" />
+            <SparklesIcon className="h-4 w-4" />
           </span>
           AI-ассистент
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Выручка, отчёты, вопросы
+          Анализ данных, бухучёт, помощь по платформе
         </p>
       </div>
 
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-y-auto p-3 space-y-3"
-      >
+      {/* Область сообщений */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-3">
+        {/* Пустое состояние с быстрыми вопросами */}
         {messages.length === 0 && !isLoading && (
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/20 py-8 text-center text-xs text-muted-foreground">
-            <BotIcon className="h-8 w-8" />
-            <p>Напишите сообщение</p>
-            <p>Например: «Выручка за сегодня?»</p>
+          <div className="space-y-3">
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 py-6 text-center">
+              <BotIcon className="h-7 w-7 text-muted-foreground" />
+              <p className="text-xs font-medium">Чем могу помочь?</p>
+              <p className="text-xs text-muted-foreground px-2">
+                Анализирую ваши данные и отвечаю на вопросы по бухучёту
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground px-1">
+                Быстрые вопросы:
+              </p>
+              {QUICK_QUESTIONS.map((q) => (
+                <button
+                  key={q.text}
+                  onClick={() => onQuickQuestion(q.text)}
+                  disabled={isLoading}
+                  className="w-full text-left rounded-lg border bg-background px-3 py-2 text-xs hover:bg-muted/50 hover:border-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {q.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
+        {/* Сообщения */}
         {messages.map((message) => (
           <div
             key={message.id}
@@ -85,14 +141,13 @@ export function CabinetChatPanel() {
               )}
             >
               <div className="whitespace-pre-wrap break-words">
-                {typeof message.content === "string"
-                  ? message.content
-                  : ""}
+                {typeof message.content === "string" ? message.content : ""}
               </div>
             </div>
           </div>
         ))}
 
+        {/* Индикатор загрузки */}
         {isLoading && (
           <div className="flex gap-2">
             <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
@@ -107,12 +162,11 @@ export function CabinetChatPanel() {
         )}
       </div>
 
-      <form
-        onSubmit={onFormSubmit}
-        className="shrink-0 border-t p-3"
-      >
+      {/* Форма ввода */}
+      <form onSubmit={onFormSubmit} className="shrink-0 border-t p-3">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
