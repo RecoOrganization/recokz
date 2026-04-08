@@ -99,10 +99,16 @@ export const organizationRouter = createTRPCRouter({
         data: defaultTransactionTypes,
       });
 
-      // Обновляем metadata в Clerk: массив компаний + текущая
+      // Sync all DB organizations into Clerk metadata
+      const allUserOrgs = await ctx.prisma.userOrganization.findMany({
+        where: { user: { clerkUserId: ctx.userId } },
+        select: { organizationId: true },
+      });
+      const allOrgIds = allUserOrgs.map((o) => o.organizationId);
+
       await ctx.clerk.users.updateUserMetadata(ctx.userId, {
         publicMetadata: {
-          organizationIds: [organization.id],
+          organizationIds: allOrgIds,
           currentOrganizationId: organization.id,
         },
       });
@@ -188,18 +194,25 @@ export const organizationRouter = createTRPCRouter({
   setCurrentOrganization: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const ids = ctx.organizationIds ?? [];
-      if (!ids.includes(input.organizationId)) {
+      const dbUser = await ctx.prisma.user.findUnique({
+        where: { clerkUserId: ctx.userId },
+        include: { organizations: { select: { organizationId: true } } },
+      });
+      if (!dbUser) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Пользователь не найден" });
+      }
+
+      const dbOrgIds = dbUser.organizations.map((o) => o.organizationId);
+      if (!dbOrgIds.includes(input.organizationId)) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Нет доступа к этой организации",
         });
       }
-      const existingMeta = (await ctx.clerk.users.getUser(ctx.userId))
-        .publicMetadata as { organizationIds?: string[] };
+
       await ctx.clerk.users.updateUserMetadata(ctx.userId, {
         publicMetadata: {
-          organizationIds: existingMeta?.organizationIds ?? ids,
+          organizationIds: dbOrgIds,
           currentOrganizationId: input.organizationId,
         },
       });

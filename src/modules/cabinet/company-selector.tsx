@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/shared/ui/select";
 import { toast } from "sonner";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, Loader2, ChevronsUpDown } from "lucide-react";
 
 type ClerkOrgMeta = {
   organizationIds?: string[];
@@ -36,26 +36,27 @@ export function CompanySelector() {
     });
 
   const meta = (user?.publicMetadata ?? {}) as ClerkOrgMeta;
-  const organizationIds = Array.isArray(meta?.organizationIds)
-    ? meta.organizationIds
-    : meta?.organizationId
-      ? [meta.organizationId]
-      : [];
   const currentId =
-    meta?.currentOrganizationId ?? meta?.organizationId ?? organizationIds[0];
+    meta?.currentOrganizationId ?? meta?.organizationId ?? undefined;
 
-  const orgs =
-    currentUser?.organizations?.filter((uo) =>
-      organizationIds.includes(uo.organization.id),
-    ) ?? [];
+  const orgs = currentUser?.organizations ?? [];
   const currentOrg = orgs.find((o) => o.organization.id === currentId);
 
-  if (organizationIds.length <= 1) {
+  if (orgs.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Building2 className="h-4 w-4" />
+        <span className="truncate max-w-[180px]">Нет компании</span>
+      </div>
+    );
+  }
+
+  if (orgs.length === 1) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Building2 className="h-4 w-4" />
         <span className="truncate max-w-[180px]">
-          {currentOrg?.organization.name ?? "Компания"}
+          {orgs[0].organization.name}
         </span>
       </div>
     );
@@ -68,23 +69,24 @@ export function CompanySelector() {
         if (value && value !== currentId) {
           await setCurrentOrganization({ organizationId: value });
           toast.success(
-            `Компания изменена на ${orgs.find((o) => o.organization.id === value)?.organization.name ?? "выбранную"}`,
+            `Компания изменена на «${orgs.find((o) => o.organization.id === value)?.organization.name ?? "выбранную"}»`,
           );
         }
       }}
       disabled={isPending}
     >
-      <SelectTrigger className="w-[200px] gap-2" size="sm">
+      <SelectTrigger className="w-[220px] gap-2" size="sm">
         {isPending ? (
           <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
         ) : (
           <Building2 className="h-4 w-4 shrink-0" />
         )}
-        <SelectValue placeholder="Компания">
+        <SelectValue placeholder="Выберите компанию">
           {isPending
             ? "Переключение…"
             : (currentOrg?.organization.name ?? "Выберите компанию")}
         </SelectValue>
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
       </SelectTrigger>
       <SelectContent>
         {orgs.map((uo) => (
