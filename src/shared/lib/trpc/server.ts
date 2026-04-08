@@ -47,15 +47,14 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     (sessionClaims?.metadata as ClerkOrgMetadata) ??
     (sessionClaims as { publicMetadata?: ClerkOrgMetadata })?.publicMetadata;
 
-  const hasOrgInfo =
-    (Array.isArray(meta?.organizationIds) && meta.organizationIds.length > 0) ||
-    (typeof meta?.organizationId === "string" && meta.organizationId);
-  if (userId && !hasOrgInfo) {
+  // Always fetch fresh metadata from Clerk API to ensure currentOrganizationId
+  // is up-to-date (JWT session claims can lag behind metadata updates by ~60s)
+  if (userId) {
     try {
       const user = await clerk.users.getUser(userId);
       meta = user.publicMetadata as ClerkOrgMetadata;
     } catch {
-      // ignore
+      // ignore — fall back to session claims
     }
   }
 

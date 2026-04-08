@@ -11,9 +11,11 @@ import { bankTransactionRouter } from "./bank-transaction";
 import { transactionRouter } from "./transaction";
 import { userRouter } from "./user";
 import { dashboardRouter } from "./dashboard";
+import { bankStatementRouter } from "./bank-statement";
 
 export const appRouter = createTRPCRouter({
   dashboard: dashboardRouter,
+  bankStatement: bankStatementRouter,
   organization: organizationRouter,
   transactionType: transactionTypeRouter,
   reports: reportsRouter,

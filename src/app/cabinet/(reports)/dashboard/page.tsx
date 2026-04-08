@@ -16,6 +16,8 @@ import {
 } from "recharts";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
+import Link from "next/link";
+import { Button } from "@/shared/ui/button";
 
 export default function DashboardPage() {
   const { data: stats, isLoading } = api.dashboard.getStats.useQuery();
@@ -38,6 +40,15 @@ export default function DashboardPage() {
         <Typography size="body-16" color="gray-200" className="mt-2">
           Статистика транзакций
         </Typography>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <Button variant="outline" asChild>
+          <Link href="/cabinet/dashboard/bank/kaspi">Выписка — Kaspi</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/cabinet/dashboard/bank/halyk">Выписка — Halyk</Link>
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
